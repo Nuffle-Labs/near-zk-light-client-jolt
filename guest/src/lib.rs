@@ -2,8 +2,14 @@
 #![no_main]
 
 mod error;
-mod light_client;
+//mod light_client;
 mod merkle;
+
+pub mod prelude {
+    pub extern crate alloc;
+    pub use alloc::*;
+    pub use vec::Vec;
+}
 
 #[jolt::provable]
 fn fib(n: u32) -> u128 {

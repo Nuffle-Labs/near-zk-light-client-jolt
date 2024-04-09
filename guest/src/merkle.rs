@@ -1,3 +1,4 @@
+use crate::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
 use sha2::Digest;
 
@@ -75,7 +76,9 @@ pub fn hash(data: &[u8]) -> Hash {
 
 pub fn hash_borsh<T: BorshSerialize>(value: T) -> Hash {
     let mut hasher = sha2::Sha256::default();
-    value.serialize(&mut hasher).unwrap();
+    let mut bytes = Vec::new();
+    value.serialize(&mut bytes).unwrap();
+    hasher.update(bytes);
     hasher.finalize().into()
 }
 

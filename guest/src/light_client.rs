@@ -1,5 +1,6 @@
 use crate::error::Error;
 pub use crate::merkle::*;
+use crate::prelude::*;
 use borsh::BorshSerialize;
 pub use near_crypto::{ED25519PublicKey, PublicKey, Signature};
 use serde::{Deserialize, Serialize};
@@ -21,14 +22,14 @@ pub struct Synced {
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
-pub enum Proof {
+pub enum LcProof {
     Basic {
         head_block_root: Hash,
         proof: Box<BasicProof>,
     },
 }
 
-impl From<(Hash, BasicProof)> for Proof {
+impl From<(Hash, BasicProof)> for LcProof {
     fn from((head_block_root, proof): (Hash, BasicProof)) -> Self {
         Self::Basic {
             head_block_root,
@@ -37,7 +38,7 @@ impl From<(Hash, BasicProof)> for Proof {
     }
 }
 
-impl Proof {
+impl LcProof {
     pub fn block_merkle_root(&self) -> &Hash {
         match self {
             Self::Basic {
@@ -90,9 +91,9 @@ impl Protocol {
         })
         .map(|synced| synced)
     }
-    pub fn inclusion_proof_verify(proof: Proof) -> Result<bool> {
+    pub fn inclusion_proof_verify(proof: LcProof) -> Result<bool> {
         match proof {
-            Proof::Basic {
+            LcProof::Basic {
                 head_block_root,
                 proof,
             } => {
@@ -295,25 +296,84 @@ macro_rules! cvec {
 
 #[cfg(test)]
 mod tests {
-    use itertools::Itertools;
+    use super::vec::Vec;
     use near_jsonrpc_primitives::types::light_client::RpcLightClientExecutionProofResponse;
+    use serde::de::DeserializeOwned;
     use serde_json::{self};
-    use test_utils::*;
+    use std::path::{Path, PathBuf};
 
     use super::*;
 
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct LightClientFixture<T> {
+        pub last_block_hash: Hash,
+        pub body: T,
+    }
+
+    pub fn workspace_dir() -> PathBuf {
+        let output = std::process::Command::new(env!("CARGO"))
+            .arg("locate-project")
+            .arg("--workspace")
+            .arg("--message-format=plain")
+            .output()
+            .unwrap()
+            .stdout;
+        let cargo_path = Path::new(std::str::from_utf8(&output).unwrap().trim());
+        cargo_path.parent().unwrap().to_path_buf()
+    }
+
+    pub fn fixture<T: DeserializeOwned>(file: &str) -> T {
+        serde_json::from_reader(
+            std::fs::File::open(format!("{}/fixtures/{}", workspace_dir().display(), file))
+                .unwrap(),
+        )
+        .unwrap()
+    }
+    pub fn test_last() -> LightClientFixture<LightClientBlockView> {
+        fixture("test_2.json")
+    }
+
+    pub fn test_next() -> LightClientFixture<LightClientBlockView> {
+        fixture("test_1.json")
+    }
+
+    pub fn test_first() -> LightClientFixture<LightClientBlockView> {
+        fixture("test_0.json")
+    }
+
+    pub fn test_state() -> (Header, Vec<ValidatorStake>, LightClientBlockView) {
+        let first = test_first().body;
+        let head = view_to_lite_view(first.clone());
+        let bps = first
+            .next_bps
+            .unwrap()
+            .into_iter()
+            .map(Into::into)
+            .collect();
+        let next = test_next();
+
+        (head, bps, next.body)
+    }
+
+    pub fn view_to_lite_view(h: LightClientBlockView) -> Header {
+        Header {
+            prev_block_hash: h.prev_block_hash,
+            inner_rest_hash: h.inner_rest_hash,
+            inner_lite: h.inner_lite,
+        }
+    }
     #[test]
     fn test_sync_across_epoch_boundaries() {
-        let (mut head, mut next_bps, next_block) = testnet_state();
+        let (mut head, mut next_bps, next_block) = test_state();
         println!("head: {:#?}", head.inner_lite);
-        let mut next_epoch_id = EpochId(head.inner_lite.next_epoch_id);
+        let mut next_epoch_id = head.inner_lite.next_epoch_id;
 
         let mut sync_and_update = |next_block: LightClientBlockView| {
             let sync_next = Protocol::sync(&head, &next_bps[..], next_block.clone()).unwrap();
             // Assert we matched the epoch id for the new BPS
             assert_eq!(
                 head.inner_lite.next_epoch_id,
-                sync_next.next_bps.as_ref().unwrap().0 .0
+                sync_next.next_bps.as_ref().unwrap().0
             );
 
             println!("new head: {:#?}", sync_next.new_head.inner_lite);
@@ -332,9 +392,9 @@ mod tests {
                     .unwrap()
                     .into_iter()
                     .map(Into::into)
-                    .collect_vec()
+                    .collect::<vec::Vec<_>>()
             );
-            next_epoch_id.0 = head.inner_lite.next_epoch_id;
+            next_epoch_id = head.inner_lite.next_epoch_id;
         };
 
         // Do first sync
@@ -358,7 +418,7 @@ mod tests {
     fn test_validate_bad_epoch() {
         let (head, _, _) = test_state();
         assert_eq!(
-            Protocol::ensure_epoch_is_current_or_next(&head, &Hash::hash_bytes(b"bogus hash")),
+            Protocol::ensure_epoch_is_current_or_next(&head, &hash(b"bogus hash")),
             Err(Error::BlockNotCurrentOrNextEpoch)
         );
     }
@@ -385,7 +445,7 @@ mod tests {
             Protocol::validate_signature(
                 &b"bogus approval message"[..],
                 &next_block.approvals_after_next[0],
-                next_bps[0].public_key(),
+                &next_bps[0].public_key,
             ),
             Err(Error::SignatureInvalid)
         );
@@ -437,7 +497,7 @@ mod tests {
 
         let min_approval_amount = (total / 3) * 2;
 
-        assert_eq!(https://github.com/sp1-patches/curve25519-dalek.git
+        assert_eq!(
             Protocol::ensure_stake_is_sufficient(&total, &(min_approval_amount - 1)),
             Err(Error::NotEnoughApprovedStake)
         );
@@ -448,7 +508,7 @@ mod tests {
         let (_, _, next_block) = test_state();
 
         assert_eq!(
-            Protocol::ensure_next_bps_is_valid(&Hash::hash_borsh(b"invalid"), next_block.next_bps),
+            Protocol::ensure_next_bps_is_valid(&hash_borsh(b"invalid"), next_block.next_bps),
             Err(Error::NextBpsInvalid)
         );
     }
@@ -479,9 +539,9 @@ mod tests {
     #[test]
     fn test_outcome_root() {
         let req = r#"{"outcome_proof":{"proof":[],"block_hash":"5CY72FinjVV2Hd5zRikYYMaKh67pftXJsw8vwRXAUAQF","id":"9UhBumQ3eEmPH5ALc3NwiDCQfDrFakteRD7rHE9CfZ32","outcome":{"logs":[],"receipt_ids":["2mrt6jXKwWzkGrhucAtSc8R3mjrhkwCjnqVckPdCMEDo"],"gas_burnt":2434069818500,"tokens_burnt":"243406981850000000000","executor_id":"datayalla.testnet","status":{"SuccessReceiptId":"2mrt6jXKwWzkGrhucAtSc8R3mjrhkwCjnqVckPdCMEDo"},"metadata":{"version":1,"gas_profile":null}}},"outcome_root_proof":[{"hash":"9f7YjLvzvSspJMMJ3DDTrFaEyPQ5qFqQDNoWzAbSTjTy","direction":"Right"},{"hash":"67ZxFmzWXbWJSyi7Wp9FTSbbJx2nMr7wSuW3EP1cJm4K","direction":"Left"}],"block_header_lite":{"prev_block_hash":"AEnTyGRrk2roQkYSWoqYhzkbp5SWWJtCd71ZYyj1P26i","inner_rest_hash":"G25j8jSWRyrXV317cPC3qYA4SyJWXsBfErjhBYQkxw5A","inner_lite":{"height":134481525,"epoch_id":"4tBzDozzGED3QiCRURfViVuyJy5ikaN9dVH7m2MYkTyw","next_epoch_id":"9gYJSiT3TQbKbwui5bdbzBA9PCMSSfiffWhBdMtcasm2","prev_state_root":"EwkRecSP8GRvaxL7ynCEoHhsL1ksU6FsHVLCevcccF5q","outcome_root":"8Eu5qpDUMpW5nbmTrTKmDH2VYqFEHTKPETSTpPoyGoGc","timestamp":1691615068679535000,"timestamp_nanosec":"1691615068679535094","next_bp_hash":"8LCFsP6LeueT4X3PEni9CMvH7maDYpBtfApWZdXmagss","block_merkle_root":"583vb6csYnczHyt5z6Msm4LzzGkceTZHdvXjC8vcWeGK"}},"block_proof":[{"hash":"AEnTyGRrk2roQkYSWoqYhzkbp5SWWJtCd71ZYyj1P26i","direction":"Left"},{"hash":"HgZaHXpb5zs4rxUQTeW69XBNLBJoo4sz2YEDh7aFnMpC","direction":"Left"},{"hash":"EYNXYsnESQkXo7B27a9xu6YgbDSyynNcByW5Q2SqAaKH","direction":"Right"},{"hash":"AbKbsD7snoSnmzAtwNqXLBT5sm7bZr48GCCLSdksFuzi","direction":"Left"},{"hash":"7KKmS7n3MtCfv7UqciidJ24Abqsk8m85jVQTh94KTjYS","direction":"Left"},{"hash":"5nKA1HCZMJbdCccZ16abZGEng4sMoZhKez74rcCFjnhL","direction":"Left"},{"hash":"BupagAycSLD7v42ksgMKJFiuCzCdZ6ksrGLwukw7Vfe3","direction":"Right"},{"hash":"D6v37P4kcVJh8N9bV417eqJoyMeQbuZ743oNsbKxsU7z","direction":"Right"},{"hash":"8sWxxbe1rdquP5VdYfQbw1UvtcXDRansJYJV5ySzyow4","direction":"Right"},{"hash":"CmKVKWRqEqi4UaeKKYXpPSesYqdQYwHQM3E4xLKEUAj8","direction":"Left"},{"hash":"3TvjFzVyPBvPpph5zL6VCASLCxdNeiKV6foPwUpAGqRv","direction":"Left"},{"hash":"AnzSG9f91ePS6L6ii3eAkocp4iKjp6wjzSwWsDYWLnMX","direction":"Right"},{"hash":"FYVJDL4T6c87An3pdeBvntB68NzpcPtpvLP6ifjxxNkr","direction":"Left"},{"hash":"2YMF6KE8XTz7Axj3uyAoFbZisWej9Xo8mxgVtauWCZaV","direction":"Left"},{"hash":"4BHtLcxqNfWSneBdW76qsd8om8Gjg58Qw5BX8PHz93hf","direction":"Left"},{"hash":"7G3QUT7NQSHyXNQyzm8dsaYrFk5LGhYaG7aVafKAekyG","direction":"Left"},{"hash":"3XaMNnvnX69gGqBJX43Na1bSTJ4VUe7z6h5ZYJsaSZZR","direction":"Left"},{"hash":"FKu7GtfviPioyAGXGZLBVTJeG7KY5BxGwuL447oAZxiL","direction":"Right"},{"hash":"BePd7DPKUQnGtnSds5fMJGBUwHGxSNBpaNLwceJGUcJX","direction":"Left"},{"hash":"2BVKWMd9pXZTEyE9D3KL52hAWAyMrXj1NqutamyurrY1","direction":"Left"},{"hash":"EWavHKhwQiT8ApnXvybvc9bFY6aJYJWqBhcrZpubKXtA","direction":"Left"},{"hash":"83Fsd3sdx5tsJkb6maBE1yViKiqbWCCNfJ4XZRsKnRZD","direction":"Left"},{"hash":"AaT9jQmUvVpgDHdFkLR2XctaUVdTti49enmtbT5hsoyL","direction":"Left"}]}"#;
-        let p: RpcLightClientExecutionProofResponse = serde_json::from_str(req).unwrap();
+        let p: BasicProof = serde_json::from_str(req).unwrap();
 
-        let outcome_hash = hash_borsh(p.outcome_proof.to_hashes());
+        let outcome_hash = hash_borsh(p.outcome_proof.outcome.to_hashes(p.outcome_proof.id));
 
         let root_matches = Protocol::verify_outcome(
             &outcome_hash,

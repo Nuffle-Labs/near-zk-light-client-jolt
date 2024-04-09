@@ -11,14 +11,26 @@ path = "./src/lib.rs"
 guest = []
 
 [dependencies]
+serde = { version = "*", features = ["derive"], default-features = false }
+serde_with = { version = "*", features = [
+  "hex",
+  "base64",
+  "alloc",
+], default-features = false }
 jolt = { package = "jolt-sdk", git = "https://github.com/a16z/jolt" }
-sha2 = "*"
-borsh = "*"
-serde = { version = "*", features = ["derive"], no-default-features = true }
+sha2 = { version = "*", default-features = false }
+hex = { version = "*", default-features = false }
+borsh = { version = "*", features = ["derive"], default-features = false }
 
-# Not sure if no-std usable
-serde_with = "*"
-near-crypto = "*"
-near-account-id = "*"
-near-jsonrpc-primitives = "*"
-hex = "*"
+# Testing
+curve25519-dalek = { version = "=4.1.1", default-features = false }
+ed25519-dalek = { version = "=2.1.1", default-features = false }
+
+
+# Naughty no-std crates
+# near-account-id = { version = "*", default-features = false }
+# near-crypto = { version = "*", default-features = false }
+# near-jsonrpc-primitives = { version = "*", default-features = false }
+
+[dev-dependencies]
+serde_json = "*"
