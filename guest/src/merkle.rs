@@ -1,10 +1,20 @@
-use borsh::BorshSerialize;
+use borsh::{BorshDeserialize, BorshSerialize};
 use sha2::Digest;
 
-type Hash = [u8; 32];
+pub type Hash = [u8; 32];
 
-type MerkleHash = Hash;
+pub type MerkleHash = Hash;
 
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    serde::Deserialize,
+    serde::Serialize,
+)]
 pub struct MerklePathItem {
     pub hash: MerkleHash,
     pub direction: Direction,
@@ -12,6 +22,16 @@ pub struct MerklePathItem {
 
 pub type MerklePath = Vec<MerklePathItem>;
 
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    serde::Deserialize,
+    serde::Serialize,
+)]
 pub enum Direction {
     Left,
     Right,
@@ -45,6 +65,12 @@ pub fn compute_root_from_path<'a>(
         }
     }
     hash_so_far
+}
+
+pub fn hash(data: &[u8]) -> Hash {
+    let mut hasher = sha2::Sha256::default();
+    hasher.update(data);
+    hasher.finalize().into()
 }
 
 pub fn hash_borsh<T: BorshSerialize>(value: T) -> Hash {

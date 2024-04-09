@@ -14,7 +14,11 @@ guest = []
 jolt = { package = "jolt-sdk", git = "https://github.com/a16z/jolt" }
 sha2 = "*"
 borsh = "*"
+serde = { version = "*", features = ["derive"], no-default-features = true }
 
 # Not sure if no-std usable
+serde_with = "*"
 near-crypto = "*"
 near-account-id = "*"
+near-jsonrpc-primitives = "*"
+hex = "*"
