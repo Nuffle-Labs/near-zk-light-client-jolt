@@ -3,6 +3,7 @@
 
 pub use crate::light_client::Protocol;
 pub use error::Error;
+use prelude::*;
 pub use types::{
     combine_hash, hash, hash_borsh, BasicProof, Hash, Header, LcProof, LightClientBlockView,
     StakeInfo, ValidatorStake,

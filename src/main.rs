@@ -66,16 +66,27 @@ pub fn view_to_lite_view(
     }
 }
 
+pub fn sync() {
+    let (head, bps, next_block) = test_state();
+    let (prove, verify) = guest::build_sync();
+    let (output, proof) = prove(head, bps, next_block);
+    let is_valid = verify(proof);
+    println!("output: {}", output);
+    println!("valid: {}", is_valid);
+    // fails on signatures
+    // fails on state checks
+    // fails on input len
+}
+
 pub fn main() {
     let (head, bps, next_block) = test_state();
-    validate_already_verified(head);
-    // let (prove_fib, verify_fib) = guest::build_fib();
-    //
-    // let (output, proof) = prove_fib(50);
-    // let is_valid = verify_fib(proof);
-    //
-    // println!("output: {}", output);
-    // println!("valid: {}", is_valid);
+
+    validate_already_verified(head.clone());
+    validate_bad_epoch(head.clone());
+    // next_bps_invalid_hash(next_block.clone());
+    // next_epoch_bps_invalid(head, next_block.clone());
+    // next_invalid_signature(next_block.clone(), bps.clone());
+    // next_invalid_signatures_no_approved_stake(next_block, bps.clone());
 }
 
 pub fn validate_already_verified(head: Header) {

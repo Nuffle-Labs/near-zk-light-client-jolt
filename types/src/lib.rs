@@ -223,7 +223,16 @@ pub enum ExecutionStatusView {
 }
 
 /// Stores validator and its stake.
-#[derive(BorshSerialize, BorshDeserialize, serde::Serialize, Debug, Clone, PartialEq, Eq)]
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    serde::Serialize,
+    serde::Deserialize,
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+)]
 pub struct ValidatorStake {
     /// Account that stakes money.
     pub account_id: AccountId,
