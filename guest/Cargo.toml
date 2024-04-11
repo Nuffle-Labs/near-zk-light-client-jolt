@@ -8,8 +8,8 @@ name = "guest"
 path = "./src/lib.rs"
 
 [features]
-# default = ["guest"]
 guest = []
+std = ["near-primitives", "near-crypto"]
 
 [dependencies]
 serde = { version = "*", features = ["derive"], default-features = false }
@@ -22,7 +22,8 @@ serde_with = { version = "*", features = [
 jolt = { package = "jolt-sdk", git = "https://github.com/a16z/jolt" }
 sha2 = { version = "*", default-features = false }
 hex = { version = "*", default-features = false }
-borsh = { version = "*", features = ["derive"], default-features = false }
+types = { path = "../types", default-features = false }
+borsh = { version = "1.4", features = ["derive"], default-features = false }
 
 
 # Testing
@@ -30,6 +31,11 @@ curve25519-dalek = { version = "=4.1.1", default-features = false }
 ed25519-dalek = { version = "=2.1.1", default-features = false, features = [
   "serde",
 ] }
+
+
+#### Std crates that are optional
+near-primitives = { version = "0.19", optional = true }
+near-crypto = { version = "0.19", optional = true }
 
 
 # Naughty no-std crates

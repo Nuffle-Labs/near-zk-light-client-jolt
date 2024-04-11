@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [workspace]
-members = ["guest"]
+members = ["guest", "types"]
 
 [profile.release]
 debug = 1
@@ -15,10 +15,19 @@ lto = "fat"
 jolt = { package = "jolt-sdk", git = "https://github.com/a16z/jolt", features = [
   "std",
 ] }
+serde_json = "*"
+serde = { version = "*", features = ["derive"] }
 guest = { path = "./guest" }
+types = { path = "./types", features = ["std"] }
+
+near-primitives = { version = "*" }
+near-crypto = { version = "*" }
+
 
 [patch.crates-io]
 ark-ff = { git = "https://github.com/a16z/arkworks-algebra", branch = "optimize/field-from-u64" }
 ark-ec = { git = "https://github.com/a16z/arkworks-algebra", branch = "optimize/field-from-u64" }
 ark-serialize = { git = "https://github.com/a16z/arkworks-algebra", branch = "optimize/field-from-u64" }
 #ed25519-dalek = { git = "https://github.com/sp1-patches/curve25519-dalek" }
+
+[dev-dependencies]

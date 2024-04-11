@@ -1,7 +1,10 @@
-use crate::{light_client::types::Hash, light_client::types::MerkleHash, prelude::*};
+use crate::Hash;
+use alloc::vec::Vec;
 use borsh::{BorshDeserialize, BorshSerialize};
 use serde::{Deserialize, Serialize};
 use sha2::Digest;
+
+use crate::MerkleHash;
 
 #[derive(Debug, Clone, PartialEq, Eq, BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
 pub struct MerklePathItem {

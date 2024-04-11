@@ -1,13 +1,20 @@
-use crate::merkle::{combine_hash, hash, hash_borsh, MerklePath};
-use crate::prelude::*;
+#![cfg_attr(not(feature = "std"), no_std)]
+
 use alloc::{boxed::Box, string::String};
 use borsh::{
     io::{Error, ErrorKind, Read, Write},
     BorshDeserialize, BorshSerialize,
 };
+pub use merkle::*;
 use serde::{Deserialize, Serialize};
 use serde_with::base64::Base64;
 use serde_with::serde_as;
+
+pub extern crate alloc;
+pub use alloc::*;
+pub use vec::Vec;
+
+mod merkle;
 
 pub type BlockHeight = u64;
 pub type EpochId = Hash;
@@ -84,6 +91,22 @@ impl From<BlockHeaderInnerLiteView> for BlockHeaderInnerLite {
             timestamp: view.timestamp_nanosec,
             next_bp_hash: view.next_bp_hash,
             block_merkle_root: view.block_merkle_root,
+        }
+    }
+}
+
+#[cfg(feature = "std")]
+impl From<near_primitives::views::BlockHeaderInnerLiteView> for BlockHeaderInnerLite {
+    fn from(view: near_primitives::views::BlockHeaderInnerLiteView) -> Self {
+        BlockHeaderInnerLite {
+            height: view.height,
+            epoch_id: view.epoch_id.into(),
+            next_epoch_id: view.next_epoch_id.into(),
+            prev_state_root: view.prev_state_root.into(),
+            prev_outcome_root: view.outcome_root.into(),
+            timestamp: view.timestamp_nanosec,
+            next_bp_hash: view.next_bp_hash.into(),
+            block_merkle_root: view.block_merkle_root.into(),
         }
     }
 }
@@ -220,6 +243,18 @@ impl ValidatorStake {
     }
 }
 
+#[cfg(feature = "std")]
+impl From<near_primitives::views::validator_stake_view::ValidatorStakeView> for ValidatorStake {
+    fn from(value: near_primitives::views::validator_stake_view::ValidatorStakeView) -> Self {
+        let (account_id, public_key, stake) = value.into_validator_stake().destructure();
+        Self {
+            account_id: account_id.to_string(),
+            public_key: public_key.unwrap_as_ed25519().0,
+            stake,
+        }
+    }
+}
+
 #[derive(
     BorshSerialize, BorshDeserialize, serde::Serialize, Deserialize, Debug, Clone, Eq, PartialEq,
 )]
@@ -249,6 +284,18 @@ impl ValidatorStakeView {
         match self {
             Self::V1(v1) => &v1.account_id,
         }
+    }
+}
+
+#[cfg(feature = "std")]
+impl From<near_primitives::views::validator_stake_view::ValidatorStakeView> for ValidatorStakeView {
+    fn from(value: near_primitives::views::validator_stake_view::ValidatorStakeView) -> Self {
+        let (account_id, public_key, stake) = value.into_validator_stake().destructure();
+        Self::V1(ValidatorStakeViewV1 {
+            account_id: account_id.to_string(),
+            public_key: public_key.unwrap_as_ed25519().0,
+            stake,
+        })
     }
 }
 
@@ -310,6 +357,23 @@ pub struct BlockHeaderInnerLiteView {
     pub block_merkle_root: Hash,
 }
 
+#[cfg(feature = "std")]
+impl From<near_primitives::views::BlockHeaderInnerLiteView> for BlockHeaderInnerLiteView {
+    fn from(value: near_primitives::views::BlockHeaderInnerLiteView) -> Self {
+        Self {
+            height: value.height,
+            epoch_id: value.epoch_id.0,
+            next_epoch_id: value.next_epoch_id.0,
+            prev_state_root: value.prev_state_root.0,
+            outcome_root: value.outcome_root.0,
+            timestamp: value.timestamp,
+            timestamp_nanosec: value.timestamp_nanosec,
+            next_bp_hash: value.next_bp_hash.0,
+            block_merkle_root: value.block_merkle_root.0,
+        }
+    }
+}
+
 #[derive(
     PartialEq,
     Eq,
@@ -329,12 +393,42 @@ pub struct LightClientBlockView {
     pub approvals_after_next: Vec<Option<Box<Signature>>>,
 }
 
+#[cfg(feature = "std")]
+impl From<near_primitives::views::LightClientBlockView> for LightClientBlockView {
+    fn from(value: near_primitives::views::LightClientBlockView) -> Self {
+        Self {
+            prev_block_hash: value.prev_block_hash.0,
+            next_block_inner_hash: value.next_block_inner_hash.0,
+            inner_lite: value.inner_lite.into(),
+            inner_rest_hash: value.inner_rest_hash.0,
+            next_bps: value
+                .next_bps
+                .map(|v| v.into_iter().map(Into::into).collect()),
+            approvals_after_next: value
+                .approvals_after_next
+                .into_iter()
+                .map(|s| {
+                    s.map(|s| {
+                        if let near_crypto::Signature::ED25519(inner) = *s {
+                            let bytes = inner.to_bytes().to_vec();
+                            Box::new(Signature::try_from_slice(&bytes).unwrap())
+                        } else {
+                            panic!("Invalid signature type")
+                        }
+                    })
+                })
+                .collect(),
+        }
+    }
+}
+
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, BorshDeserialize, BorshSerialize)]
 pub struct LightClientBlockLiteView {
     pub prev_block_hash: Hash,
     pub inner_rest_hash: Hash,
     pub inner_lite: BlockHeaderInnerLiteView,
 }
+
 impl LightClientBlockLiteView {
     pub fn hash(&self) -> Hash {
         let block_header_inner_lite: BlockHeaderInnerLite = self.inner_lite.clone().into();
@@ -345,6 +439,17 @@ impl LightClientBlockLiteView {
             ),
             &self.prev_block_hash,
         )
+    }
+}
+
+#[cfg(feature = "std")]
+impl From<near_primitives::views::LightClientBlockLiteView> for LightClientBlockLiteView {
+    fn from(block: near_primitives::views::LightClientBlockLiteView) -> Self {
+        Self {
+            prev_block_hash: block.prev_block_hash.into(),
+            inner_rest_hash: block.inner_rest_hash.into(),
+            inner_lite: block.inner_lite.into(),
+        }
     }
 }
 
@@ -412,5 +517,16 @@ impl LcProof {
                 head_block_root, ..
             } => head_block_root,
         }
+    }
+}
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StakeInfo {
+    pub total: u128,
+    pub approved: u128,
+}
+
+impl From<(u128, u128)> for StakeInfo {
+    fn from((total, approved): (u128, u128)) -> Self {
+        Self { total, approved }
     }
 }
