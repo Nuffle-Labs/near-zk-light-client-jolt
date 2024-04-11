@@ -1,51 +1,22 @@
 use crate::error::Error;
 pub use crate::merkle::*;
 use crate::prelude::*;
+use alloc::boxed::Box;
 use borsh::BorshSerialize;
-pub use near_crypto::{ED25519PublicKey, PublicKey, Signature};
-use serde::{Deserialize, Serialize};
+use ed25519_dalek::Verifier;
 use types::*;
 
 pub mod types;
 
-pub type Header = LightClientBlockLiteView;
-pub type BasicProof = RpcLightClientExecutionProofResponse;
 type Result<T> = core::result::Result<T, Error>;
 
+// TODO: remove
 pub const NUM_BLOCK_PRODUCER_SEATS: usize = 50;
 
 #[derive(Debug)]
 pub struct Synced {
     pub new_head: Header,
     pub next_bps: Option<(EpochId, Vec<ValidatorStake>)>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(untagged)]
-pub enum LcProof {
-    Basic {
-        head_block_root: Hash,
-        proof: Box<BasicProof>,
-    },
-}
-
-impl From<(Hash, BasicProof)> for LcProof {
-    fn from((head_block_root, proof): (Hash, BasicProof)) -> Self {
-        Self::Basic {
-            head_block_root,
-            proof: Box::new(proof),
-        }
-    }
-}
-
-impl LcProof {
-    pub fn block_merkle_root(&self) -> &Hash {
-        match self {
-            Self::Basic {
-                head_block_root, ..
-            } => head_block_root,
-        }
-    }
 }
 
 pub struct Protocol;
@@ -166,8 +137,8 @@ impl Protocol {
         let approval_message = {
             let mut temp_vec = Vec::new();
             BorshSerialize::serialize(&endorsement, &mut temp_vec).ok()?;
-            //temp_vec.extend_from_slice(&(endorsement.try_to_vec().ok()?[..]));
             temp_vec.extend_from_slice(&((block_view.inner_lite.height + 2).to_le_bytes()[..]));
+            #[cfg(test)]
             println!("temp_vec len: {:?}", temp_vec.len());
             temp_vec
         };
@@ -235,7 +206,10 @@ impl Protocol {
         pk: &PublicKey,
     ) -> Result<()> {
         match sig {
-            Some(signature) if signature.verify(msg, pk) => Ok(()),
+            Some(signature) => match ed25519_dalek::VerifyingKey::from_bytes(pk) {
+                Err(_) => Err(Error::SignatureInvalid),
+                Ok(public_key) => Ok(public_key.verify(msg, &signature.0).unwrap()),
+            },
             Some(signature) => Err(Error::SignatureInvalid),
             _ => Err(Error::ValidatorNotSigned),
         }
@@ -298,13 +272,13 @@ macro_rules! cvec {
 mod tests {
     use super::vec::Vec;
     use near_jsonrpc_primitives::types::light_client::RpcLightClientExecutionProofResponse;
-    use serde::de::DeserializeOwned;
+    use serde::de::Owned;
     use serde_json::{self};
     use std::path::{Path, PathBuf};
 
     use super::*;
 
-    #[derive(Debug, Clone, Serialize, Deserialize)]
+    #[derive(Debug, Clone)]
     pub struct LightClientFixture<T> {
         pub last_block_hash: Hash,
         pub body: T,
@@ -322,7 +296,7 @@ mod tests {
         cargo_path.parent().unwrap().to_path_buf()
     }
 
-    pub fn fixture<T: DeserializeOwned>(file: &str) -> T {
+    pub fn fixture<T: Owned>(file: &str) -> T {
         serde_json::from_reader(
             std::fs::File::open(format!("{}/fixtures/{}", workspace_dir().display(), file))
                 .unwrap(),

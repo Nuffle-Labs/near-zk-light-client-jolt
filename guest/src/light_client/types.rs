@@ -1,12 +1,10 @@
+use crate::merkle::{combine_hash, hash, hash_borsh, MerklePath};
 use crate::prelude::*;
-use crate::{
-    light_client::MerkleHash,
-    merkle::{self, combine_hash, hash, hash_borsh, Hash, MerklePath},
+use alloc::{boxed::Box, string::String};
+use borsh::{
+    io::{Error, ErrorKind, Read, Write},
+    BorshDeserialize, BorshSerialize,
 };
-use borsh::{BorshDeserialize, BorshSerialize};
-use core::fmt::Display;
-use near_account_id::AccountId;
-use near_crypto::{PublicKey, Signature};
 use serde::{Deserialize, Serialize};
 use serde_with::base64::Base64;
 use serde_with::serde_as;
@@ -14,9 +12,42 @@ use serde_with::serde_as;
 pub type BlockHeight = u64;
 pub type EpochId = Hash;
 pub type Balance = u128;
+pub type AccountId = String;
+pub type Hash = [u8; 32];
+pub type MerkleHash = Hash;
+pub type PublicKey = [u8; ed25519_dalek::PUBLIC_KEY_LENGTH];
+pub type Header = LightClientBlockLiteView;
+pub type BasicProof = RpcLightClientExecutionProofResponse;
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+pub struct Signature(pub ed25519_dalek::Signature);
+
+impl BorshSerialize for Signature {
+    fn serialize<W: Write>(&self, writer: &mut W) -> Result<(), Error> {
+        BorshSerialize::serialize(&0u8, writer)?;
+        writer.write_all(&self.0.to_bytes())?;
+        Ok(())
+    }
+}
+
+impl BorshDeserialize for Signature {
+    fn deserialize_reader<R: Read>(rd: &mut R) -> Result<Self, Error> {
+        let key_type = 0;
+        let array: [u8; ed25519_dalek::SIGNATURE_LENGTH] =
+            BorshDeserialize::deserialize_reader(rd)?;
+        // Sanity-check that was performed by ed25519-dalek in from_bytes before version 2,
+        // but was removed with version 2. It is not actually any good a check, but we have
+        // it here in case we need to keep backward compatibility. Maybe this check is not
+        // actually required, but please think carefully before removing it.
+        if array[ed25519_dalek::SIGNATURE_LENGTH - 1] & 0b1110_0000 != 0 {
+            return Err(Error::new(ErrorKind::InvalidData, "signature error"));
+        }
+        Ok(Signature(ed25519_dalek::Signature::from_bytes(&array)))
+    }
+}
 
 /// The part of the block approval that is different for endorsements and skips
-#[derive(BorshSerialize, BorshDeserialize, serde::Serialize, Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, BorshSerialize, BorshDeserialize)]
 pub enum ApprovalInner {
     Endorsement(Hash),
     Skip(BlockHeight),
@@ -57,7 +88,7 @@ impl From<BlockHeaderInnerLiteView> for BlockHeaderInnerLite {
     }
 }
 
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Serialize, serde::Deserialize)]
 pub struct RpcLightClientExecutionProofResponse {
     pub outcome_proof: ExecutionOutcomeWithIdView,
     pub outcome_root_proof: MerklePath,
@@ -221,7 +252,16 @@ impl ValidatorStakeView {
     }
 }
 
-#[derive(BorshSerialize, BorshDeserialize, Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(
+    Debug,
+    Clone,
+    Eq,
+    PartialEq,
+    BorshSerialize,
+    BorshDeserialize,
+    serde::Serialize,
+    serde::Deserialize,
+)]
 pub struct ValidatorStakeViewV1 {
     pub account_id: AccountId,
     pub public_key: PublicKey,
@@ -345,4 +385,32 @@ pub struct ActionError {
     /// Index of the failed action in the transaction.
     /// Action index is not defined if ActionError.kind is `ActionErrorKind::LackBalanceForState`
     pub index: Option<u64>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum LcProof {
+    Basic {
+        head_block_root: Hash,
+        proof: Box<BasicProof>,
+    },
+}
+
+impl From<(Hash, BasicProof)> for LcProof {
+    fn from((head_block_root, proof): (Hash, BasicProof)) -> Self {
+        Self::Basic {
+            head_block_root,
+            proof: Box::new(proof),
+        }
+    }
+}
+
+impl LcProof {
+    pub fn block_merkle_root(&self) -> &Hash {
+        match self {
+            Self::Basic {
+                head_block_root, ..
+            } => head_block_root,
+        }
+    }
 }

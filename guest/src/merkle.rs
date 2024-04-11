@@ -1,21 +1,9 @@
-use crate::prelude::*;
+use crate::{light_client::types::Hash, light_client::types::MerkleHash, prelude::*};
 use borsh::{BorshDeserialize, BorshSerialize};
+use serde::{Deserialize, Serialize};
 use sha2::Digest;
 
-pub type Hash = [u8; 32];
-
-pub type MerkleHash = Hash;
-
-#[derive(
-    BorshSerialize,
-    BorshDeserialize,
-    Debug,
-    Clone,
-    PartialEq,
-    Eq,
-    serde::Deserialize,
-    serde::Serialize,
-)]
+#[derive(Debug, Clone, PartialEq, Eq, BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
 pub struct MerklePathItem {
     pub hash: MerkleHash,
     pub direction: Direction,
@@ -23,16 +11,7 @@ pub struct MerklePathItem {
 
 pub type MerklePath = Vec<MerklePathItem>;
 
-#[derive(
-    BorshSerialize,
-    BorshDeserialize,
-    Debug,
-    Clone,
-    PartialEq,
-    Eq,
-    serde::Deserialize,
-    serde::Serialize,
-)]
+#[derive(Debug, Clone, PartialEq, Eq, BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
 pub enum Direction {
     Left,
     Right,
@@ -74,15 +53,16 @@ pub fn hash(data: &[u8]) -> Hash {
     hasher.finalize().into()
 }
 
-pub fn hash_borsh<T: BorshSerialize>(value: T) -> Hash {
-    let mut hasher = sha2::Sha256::default();
-    let mut bytes = Vec::new();
-    value.serialize(&mut bytes).unwrap();
-    hasher.update(bytes);
-    hasher.finalize().into()
+pub fn hash_borsh<T>(value: T) -> Hash {
+    todo!("provide intobytes from host")
+    // let mut hasher = sha2::Sha256::default();
+    // let mut bytes = Vec::new();
+    // value.serialize(&mut bytes).unwrap();
+    // hasher.update(bytes);
+    // hasher.finalize().into()
 }
 
-pub fn compute_root_from_path_and_item<'a, T: BorshSerialize>(
+pub fn compute_root_from_path_and_item<'a, T>(
     path: impl Iterator<Item = &'a MerklePathItem>,
     item: T,
 ) -> MerkleHash {

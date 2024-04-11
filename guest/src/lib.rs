@@ -1,14 +1,24 @@
 #![cfg_attr(feature = "guest", no_std)]
 #![no_main]
 
+use crate::light_client::{
+    types::{Header, LightClientBlockView, ValidatorStake},
+    Protocol,
+};
+
 mod error;
-//mod light_client;
+mod light_client;
 mod merkle;
 
 pub mod prelude {
     pub extern crate alloc;
     pub use alloc::*;
     pub use vec::Vec;
+}
+
+// #[jolt::provable]
+fn sync(head: &Header, epoch_bps: &[ValidatorStake], next_block: LightClientBlockView) -> bool {
+    Protocol::sync(head, epoch_bps, next_block).is_ok()
 }
 
 #[jolt::provable]

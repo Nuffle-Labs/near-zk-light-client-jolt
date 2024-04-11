@@ -8,6 +8,7 @@ name = "guest"
 path = "./src/lib.rs"
 
 [features]
+# default = ["guest"]
 guest = []
 
 [dependencies]
@@ -15,6 +16,7 @@ serde = { version = "*", features = ["derive"], default-features = false }
 serde_with = { version = "*", features = [
   "hex",
   "base64",
+  "macros",
   "alloc",
 ], default-features = false }
 jolt = { package = "jolt-sdk", git = "https://github.com/a16z/jolt" }
@@ -22,9 +24,12 @@ sha2 = { version = "*", default-features = false }
 hex = { version = "*", default-features = false }
 borsh = { version = "*", features = ["derive"], default-features = false }
 
+
 # Testing
 curve25519-dalek = { version = "=4.1.1", default-features = false }
-ed25519-dalek = { version = "=2.1.1", default-features = false }
+ed25519-dalek = { version = "=2.1.1", default-features = false, features = [
+  "serde",
+] }
 
 
 # Naughty no-std crates
