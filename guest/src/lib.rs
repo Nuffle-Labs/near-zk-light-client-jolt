@@ -21,9 +21,14 @@ pub mod prelude {
     pub use vec::Vec;
 }
 
-#[jolt::provable(max_input_size = 10000, max_output_size = 10000)]
-fn sync(head: Header, epoch_bps: Vec<ValidatorStake>, next_block: LightClientBlockView) -> bool {
-    Protocol::sync(&head, &epoch_bps, next_block).is_ok()
+#[jolt::provable(
+    stack_size = 10000,
+    memory_size = 10000000,
+    max_input_size = 16384,
+    max_output_size = 4096
+)]
+fn sync_lc(head: Header, epoch_bps: Vec<ValidatorStake>, next_block: LightClientBlockView) {
+    Protocol::sync(&head, &epoch_bps, next_block).unwrap();
 }
 
 #[jolt::provable(max_input_size = 10000, max_output_size = 10000)]

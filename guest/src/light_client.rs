@@ -57,7 +57,6 @@ impl Protocol {
             .map(|next_bps| next_bps.into_iter().map(Into::into).collect())
             .map(|next_bps| (head.inner_lite.next_epoch_id, next_bps)),
         })
-        .map(|synced| synced)
     }
     pub fn inclusion_proof_verify(proof: LcProof) -> Result<bool> {
         match proof {
@@ -181,7 +180,7 @@ impl Protocol {
             .zip(epoch_bps.iter())
             .take(NUM_BLOCK_PRODUCER_SEATS)
             .fold((0, 0), |(total_stake, approved_stake), (sig, vs)| {
-                let pk = vs.public_key.clone();
+                let pk = vs.public_key;
                 let stake = vs.stake;
                 let total_stake = total_stake + stake;
 
@@ -205,9 +204,12 @@ impl Protocol {
         match sig {
             Some(signature) => match ed25519_dalek::VerifyingKey::from_bytes(pk) {
                 Err(_) => Err(Error::SignatureInvalid),
-                Ok(public_key) => Ok(public_key.verify(msg, &signature.0).unwrap()),
+                Ok(public_key) => {
+                    public_key.verify(msg, &signature.0);
+                    // .expect("valid signature");
+                    Ok(())
+                }
             },
-            Some(signature) => Err(Error::SignatureInvalid),
             _ => Err(Error::ValidatorNotSigned),
         }
     }

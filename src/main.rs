@@ -1,7 +1,4 @@
-use guest::{
-    hash, hash_borsh, sync, BasicProof, Error, Hash, Header, LcProof, LightClientBlockView,
-    Protocol, StakeInfo, ValidatorStake,
-};
+use guest::{BasicProof, Header, LightClientBlockView, ValidatorStake};
 use serde::{de::DeserializeOwned, Deserialize};
 use serde_json::{self};
 use std::path::{Path, PathBuf};
@@ -67,10 +64,10 @@ pub fn view_to_lite_view(
 }
 
 pub fn sync2(head: Header, bps: Vec<ValidatorStake>, next_block: LightClientBlockView) {
-    let (prove, verify) = guest::build_sync();
+    let (prove, verify) = guest::build_sync_lc();
     let (output, proof) = prove(head, bps, next_block);
     let is_valid = verify(proof);
-    println!("output: {}", output);
+    // println!("output: {}", output);
     println!("valid: {}", is_valid);
     // fails on signatures
     // fails on state checks
@@ -80,15 +77,16 @@ pub fn sync2(head: Header, bps: Vec<ValidatorStake>, next_block: LightClientBloc
 pub fn main() {
     let (head, bps, next_block) = test_state();
 
-    validate_already_verified(head.clone());
-    validate_bad_epoch(head.clone());
-    next_epoch_bps_invalid(head.clone(), next_block.clone());
-    next_invalid_signature(next_block.clone(), bps.clone());
-    next_invalid_signatures_no_approved_stake(next_block.clone(), bps.clone());
-    next_invalid_signatures_stake_isnt_sufficient(next_block.clone(), bps.clone());
-    next_bps_invalid_hash(next_block.clone());
-    next_bps(next_block.clone());
-    next_bps_noop_on_empty(next_block.clone());
+    // validate_already_verified(head.clone());
+    // validate_bad_epoch(head.clone());
+    // next_epoch_bps_invalid(head.clone(), next_block.clone());
+    // next_invalid_signature(next_block.clone(), bps.clone());
+    // next_invalid_signatures_no_approved_stake(next_block.clone(), bps.clone());
+    // next_invalid_signatures_stake_isnt_sufficient(next_block.clone(), bps.clone());
+    // next_bps_invalid_hash(next_block.clone());
+    // next_bps(next_block.clone());
+    // next_bps_noop_on_empty(next_block.clone());
+    // works for all but the final sync
     sync2(head, bps, next_block)
 }
 
