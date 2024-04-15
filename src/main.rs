@@ -77,17 +77,17 @@ pub fn sync2(head: Header, bps: Vec<ValidatorStake>, next_block: LightClientBloc
 pub fn main() {
     let (head, bps, next_block) = test_state();
 
-    // validate_already_verified(head.clone());
-    // validate_bad_epoch(head.clone());
-    // next_epoch_bps_invalid(head.clone(), next_block.clone());
-    // next_invalid_signature(next_block.clone(), bps.clone());
-    // next_invalid_signatures_no_approved_stake(next_block.clone(), bps.clone());
-    // next_invalid_signatures_stake_isnt_sufficient(next_block.clone(), bps.clone());
-    // next_bps_invalid_hash(next_block.clone());
-    // next_bps(next_block.clone());
-    // next_bps_noop_on_empty(next_block.clone());
-    // works for all but the final sync
-    sync2(head, bps, next_block)
+    validate_already_verified(head.clone());
+    validate_bad_epoch(head.clone());
+    next_epoch_bps_invalid(head.clone(), next_block.clone());
+    next_invalid_signature(next_block.clone(), bps.clone());
+    next_invalid_signatures_no_approved_stake(next_block.clone(), bps.clone());
+    next_invalid_signatures_stake_isnt_sufficient(next_block.clone(), bps.clone());
+    next_bps_invalid_hash(next_block.clone());
+    next_bps(next_block.clone());
+    next_bps_noop_on_empty(next_block.clone());
+    sync2(head, bps, next_block);
+    // FIXME: they all say "guest panic" but the proof is verified
 }
 
 pub fn validate_already_verified(head: Header) {
