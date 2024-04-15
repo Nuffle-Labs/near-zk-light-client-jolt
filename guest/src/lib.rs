@@ -21,12 +21,12 @@ pub mod prelude {
     pub use vec::Vec;
 }
 
-#[jolt::provable]
+#[jolt::provable(max_input_size = 10000, max_output_size = 10000)]
 fn sync(head: Header, epoch_bps: Vec<ValidatorStake>, next_block: LightClientBlockView) -> bool {
     Protocol::sync(&head, &epoch_bps, next_block).is_ok()
 }
 
-#[jolt::provable]
+#[jolt::provable(max_input_size = 10000, max_output_size = 10000)]
 fn fib(n: u32) -> u128 {
     let mut a: u128 = 0;
     let mut b: u128 = 1;
@@ -40,7 +40,7 @@ fn fib(n: u32) -> u128 {
     b
 }
 
-#[jolt::provable]
+#[jolt::provable(max_input_size = 10000, max_output_size = 10000)]
 fn validate_already_verified(head: Header) {
     assert_eq!(
         Protocol::ensure_not_already_verified(&head, &1),
@@ -48,7 +48,7 @@ fn validate_already_verified(head: Header) {
     );
 }
 
-#[jolt::provable]
+#[jolt::provable(max_input_size = 10000, max_output_size = 10000)]
 fn validate_bad_epoch(head: Header) {
     assert_eq!(
         Protocol::ensure_epoch_is_current_or_next(&head, &hash(b"bogus hash")),
@@ -56,7 +56,7 @@ fn validate_bad_epoch(head: Header) {
     );
 }
 
-#[jolt::provable]
+#[jolt::provable(max_input_size = 10000, max_output_size = 10000)]
 fn next_epoch_bps_invalid(head: Header, next_block: LightClientBlockView) {
     assert_eq!(
         Protocol::ensure_if_next_epoch_contains_next_bps(
@@ -68,7 +68,7 @@ fn next_epoch_bps_invalid(head: Header, next_block: LightClientBlockView) {
     );
 }
 
-#[jolt::provable]
+#[jolt::provable(max_input_size = 10000, max_output_size = 10000)]
 fn next_invalid_signature(next_block: LightClientBlockView, next_bps: Vec<ValidatorStake>) {
     assert_eq!(
         Protocol::validate_signature(
@@ -80,7 +80,7 @@ fn next_invalid_signature(next_block: LightClientBlockView, next_bps: Vec<Valida
     );
 }
 
-#[jolt::provable]
+#[jolt::provable(max_input_size = 10000, max_output_size = 10000)]
 fn next_invalid_signatures_no_approved_stake(
     next_block: LightClientBlockView,
     next_bps: Vec<ValidatorStake>,
@@ -104,7 +104,7 @@ fn next_invalid_signatures_no_approved_stake(
     assert_eq!((total, approved), (440511369730158962073902098744970, 0));
 }
 
-#[jolt::provable]
+#[jolt::provable(max_input_size = 10000, max_output_size = 10000)]
 fn next_invalid_signatures_stake_isnt_sufficient(
     next_block: LightClientBlockView,
     next_bps: Vec<ValidatorStake>,
@@ -135,7 +135,7 @@ fn next_invalid_signatures_stake_isnt_sufficient(
     );
 }
 
-#[jolt::provable]
+#[jolt::provable(max_input_size = 10000, max_output_size = 10000)]
 fn next_bps_invalid_hash(next_block: LightClientBlockView) {
     assert_eq!(
         Protocol::ensure_next_bps_is_valid(&hash_borsh(b"invalid"), next_block.next_bps.clone()),
@@ -143,7 +143,7 @@ fn next_bps_invalid_hash(next_block: LightClientBlockView) {
     );
 }
 
-#[jolt::provable]
+#[jolt::provable(max_input_size = 10000, max_output_size = 10000)]
 fn next_bps(next_block: LightClientBlockView) {
     assert_eq!(
         Protocol::ensure_next_bps_is_valid(
@@ -155,7 +155,7 @@ fn next_bps(next_block: LightClientBlockView) {
     );
 }
 
-#[jolt::provable]
+#[jolt::provable(max_input_size = 10000, max_output_size = 10000)]
 fn next_bps_noop_on_empty(next_block: LightClientBlockView) {
     assert_eq!(
         Protocol::ensure_next_bps_is_valid(&next_block.inner_lite.next_bp_hash, None).unwrap(),
@@ -163,7 +163,7 @@ fn next_bps_noop_on_empty(next_block: LightClientBlockView) {
     );
 }
 
-#[jolt::provable]
+#[jolt::provable(max_input_size = 10000, max_output_size = 10000)]
 fn outcome_root(p: BasicProof) {
     let outcome_hash = hash_borsh(p.outcome_proof.outcome.to_hashes(p.outcome_proof.id));
 

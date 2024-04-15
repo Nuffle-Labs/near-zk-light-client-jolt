@@ -1,6 +1,6 @@
 use guest::{
-    hash, hash_borsh, BasicProof, Error, Hash, Header, LcProof, LightClientBlockView, Protocol,
-    StakeInfo, ValidatorStake,
+    hash, hash_borsh, sync, BasicProof, Error, Hash, Header, LcProof, LightClientBlockView,
+    Protocol, StakeInfo, ValidatorStake,
 };
 use serde::{de::DeserializeOwned, Deserialize};
 use serde_json::{self};
@@ -66,8 +66,7 @@ pub fn view_to_lite_view(
     }
 }
 
-pub fn sync() {
-    let (head, bps, next_block) = test_state();
+pub fn sync2(head: Header, bps: Vec<ValidatorStake>, next_block: LightClientBlockView) {
     let (prove, verify) = guest::build_sync();
     let (output, proof) = prove(head, bps, next_block);
     let is_valid = verify(proof);
@@ -83,10 +82,14 @@ pub fn main() {
 
     validate_already_verified(head.clone());
     validate_bad_epoch(head.clone());
-    // next_bps_invalid_hash(next_block.clone());
-    // next_epoch_bps_invalid(head, next_block.clone());
-    // next_invalid_signature(next_block.clone(), bps.clone());
-    // next_invalid_signatures_no_approved_stake(next_block, bps.clone());
+    next_epoch_bps_invalid(head.clone(), next_block.clone());
+    next_invalid_signature(next_block.clone(), bps.clone());
+    next_invalid_signatures_no_approved_stake(next_block.clone(), bps.clone());
+    next_invalid_signatures_stake_isnt_sufficient(next_block.clone(), bps.clone());
+    next_bps_invalid_hash(next_block.clone());
+    next_bps(next_block.clone());
+    next_bps_noop_on_empty(next_block.clone());
+    sync2(head, bps, next_block)
 }
 
 pub fn validate_already_verified(head: Header) {

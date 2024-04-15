@@ -12,7 +12,7 @@ codegen-units = 1
 lto = "fat"
 
 [dependencies]
-jolt = { package = "jolt-sdk", git = "https://github.com/a16z/jolt", features = [
+jolt = { package = "jolt-sdk", git = "https://github.com/a16z/jolt", branch = "ncitron/configure-jolt-device", features = [
   "std",
 ] }
 serde_json = "*"
@@ -23,11 +23,13 @@ types = { path = "./types", features = ["std"] }
 near-primitives = { version = "*" }
 near-crypto = { version = "*" }
 
+[workspace.dependencies]
+jolt = { package = "jolt-sdk", git = "https://github.com/a16z/jolt", branch = "ncitron/configure-jolt-device" }
 
 [patch.crates-io]
 ark-ff = { git = "https://github.com/a16z/arkworks-algebra", branch = "optimize/field-from-u64" }
 ark-ec = { git = "https://github.com/a16z/arkworks-algebra", branch = "optimize/field-from-u64" }
 ark-serialize = { git = "https://github.com/a16z/arkworks-algebra", branch = "optimize/field-from-u64" }
-#ed25519-dalek = { git = "https://github.com/sp1-patches/curve25519-dalek" }
+#[jolt::provable(max_input_size = 10000, max_output_size = 10000)]d25519-dalek = { git = "https://github.com/sp1-patches/curve25519-dalek" }
 
 [dev-dependencies]

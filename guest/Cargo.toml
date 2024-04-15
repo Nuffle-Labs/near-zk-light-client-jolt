@@ -12,6 +12,7 @@ guest = []
 std = ["near-primitives", "near-crypto"]
 
 [dependencies]
+jolt.workspace = true
 serde = { version = "*", features = ["derive"], default-features = false }
 serde_with = { version = "*", features = [
   "hex",
@@ -19,7 +20,6 @@ serde_with = { version = "*", features = [
   "macros",
   "alloc",
 ], default-features = false }
-jolt = { package = "jolt-sdk", git = "https://github.com/a16z/jolt" }
 sha2 = { version = "*", default-features = false }
 hex = { version = "*", default-features = false }
 types = { path = "../types", default-features = false }
