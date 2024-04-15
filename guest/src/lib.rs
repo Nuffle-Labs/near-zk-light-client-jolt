@@ -21,11 +21,12 @@ pub mod prelude {
     pub use vec::Vec;
 }
 
+const MEMORY: u32 = 16 * 1024 * 1024;
 #[jolt::provable(
-    stack_size = 10000,
-    memory_size = 10000000,
-    max_input_size = 16384,
-    max_output_size = 4096
+    stack_size = 8192,
+    memory_size = 16777216,
+    max_input_size = 8196,
+    max_output_size = 1024
 )]
 fn sync_lc(head: Header, epoch_bps: Vec<ValidatorStake>, next_block: LightClientBlockView) {
     Protocol::sync(&head, &epoch_bps, next_block).unwrap();
